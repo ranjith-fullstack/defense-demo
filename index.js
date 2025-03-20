@@ -2,7 +2,7 @@ const express = require("express");
 const dgram = require("dgram");
 const http = require("http");
 const { Server } = require("socket.io");
-const opn = require("opn");
+
 
 const app = express();
 const server = http.createServer(app);
@@ -707,6 +707,5 @@ socket.on('relayButtonClick', (data) => {
 server.listen(HTTP_PORT, () => {
   console.log(`Server running at http://localhost:${HTTP_PORT}`);
 
-  // Open the web page in the default browser
-  opn(`http://localhost:${HTTP_PORT}`);
+
 });
