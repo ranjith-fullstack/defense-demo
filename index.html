@@ -637,7 +637,13 @@
   <script>
     // Initialize socket connection
     const socket = io("http://localhost:3000"); // Connect to the backend
+    socket.on('connect', () => {
+    console.log('Connected to the server');
+  });
 
+  socket.on('disconnect', () => {
+    console.log('Disconnected from the server');
+  });
     // Validate IP address
     const validateIpAddress = (ip) => {
       const parts = ip.split(".");
