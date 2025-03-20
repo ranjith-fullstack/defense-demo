@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Network Configuration</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+  <style>
+    /* Global Styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: "Arial", sans-serif;
+      background: linear-gradient(to right, #e0e7ff, #e0f7fa);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+   
+    /* Additional custom styles for Home Page */
+    .popup {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .popup.active {
+      display: flex;
+    }
+
+    .tooltip {
+  top: 100%; /* Position below the button */
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 200px;
+  text-align: left;
+}
+
+.tooltip p {
+  margin: 0;
+  padding: 2px 0;
+}
+
+.start-button {
+  background-color: green; /* Green for Start */
+}
+
+.stop-button {
+  background-color: red; /* Red for Stop */
+}
+  </style>
+</head>
+
+<body>
+  <div class="bg-gradient-to-r from-blue-100 to-cyan-100 flex justify-center items-center min-h-screen p-4">
+    <!-- Network Configuration Form -->
+    <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full" id="networkFormContainer">
+      <h2 class="text-2xl font-semibold text-gray-800 text-center mb-6">Network Configuration</h2>
+      <form id="networkForm">
+        <div class="mb-5">
+          <label for="ipAddress" class="block text-sm font-medium text-gray-700 mb-2">IP Address</label>
+          <input type="text" id="ipAddress" name="ipAddress" placeholder="192.168.1.1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200">
+          <p class="text-red-600 text-xs mt-1" id="ipAddressError"></p>
+        </div>
+        <div class="mb-5">
+          <label for="consolePort" class="block text-sm font-medium text-gray-700 mb-2">Console Port</label>
+          <input type="number" id="consolePort" name="consolePort" placeholder="1025-65535" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200">
+          <p class="text-red-600 text-xs mt-1" id="consolePortError"></p>
+        </div>
+        <div class="mb-5">
+          <label for="mcuPort" class="block text-sm font-medium text-gray-700 mb-2">MCU Port</label>
+          <input type="number" id="mcuPort" name="mcuPort" placeholder="1025-65535" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200">
+          <p class="text-red-600 text-xs mt-1" id="mcuPortError"></p>
+        </div>
+        <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200">Connect</button>
+        <p class="text-green-600 text-sm text-center mt-4 hidden" id="successMessage">Connected successfully! Redirecting...</p>
+      </form>
+    </div>
+    <!-- Login Form (Initially Hidden) -->
+    <div class="bg-white p-8 rounded-xl shadow-lg max-w-md w-full hidden" id="loginContainer">
+      <h2 class="text-2xl font-semibold text-gray-800 text-center mb-6">Login</h2>
+      <div class="flex gap-2 justify-center mb-6">
+        <div class="bg-gradient-to-br from-blue-100 to-blue-200 shadow-sm rounded-md p-2 w-20">
+          <input type="text" readonly id="v1" value="00V-00A" class="text-sm font-semibold text-gray-900 bg-transparent text-center w-full outline-none border-none">
+        </div>
+        <div class="bg-gradient-to-br from-blue-100 to-blue-200 shadow-sm rounded-md p-2 w-20">
+          <input type="text" readonly id="v2" value="00V-00A" class="text-sm font-semibold text-gray-900 bg-transparent text-center w-full outline-none border-none">
+        </div>
+        <div class="bg-gradient-to-br from-blue-100 to-blue-200 shadow-sm rounded-md p-2 w-20">
+          <input type="text" readonly id="v3" value="00V-00A" class="text-sm font-semibold text-gray-900 bg-transparent text-center w-full outline-none border-none">
+        </div>
+        <div class="bg-gradient-to-br from-blue-100 to-blue-200 shadow-sm rounded-md p-2 w-20">
+          <input type="text" readonly id="frequency" value="00Hz" class="text-sm font-semibold text-gray-900 bg-transparent text-center w-full outline-none border-none">
+        </div>
+      </div>
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Password</label>
+          <input type="password" id="password" maxlength="5" inputmode="numeric" pattern="\d{5}" placeholder="Enter 5-digit password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200">
+          <p id="loginError" class="text-red-600 text-xs mt-1 hidden">Password must be exactly 5 digits</p>
+        </div>
+        <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition duration-200">Login</button>
+      </form>
+    </div>
+</div>
+
+  <!-- Home Page (Initially Hidden) -->
+  <div class="min-h-screen bg-gradient-to-r from-blue-50 to-indigo-100 p-4 sm:p-6" id="homePage" style="display: none">
+    <div class="max-w-6xl mx-auto">
+      <div class="bg-white rounded-lg shadow-lg p-6 sm:p-8">
+        <!-- Header with readings -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+          <div class="bg-gray-100 p-4 rounded-lg text-center">
+            <input type="text" readonly
+              class="w-full text-center text-lg sm:text-xl font-bold bg-gray-100 border-none focus:outline-none"
+              id="v1" value="00V-00A" />
+          </div>
+          <div class="bg-gray-100 p-4 rounded-lg text-center">
+            <input type="text" readonly
+              class="w-full text-center text-lg sm:text-xl font-bold bg-gray-100 border-none focus:outline-none"
+              id="v2" value="00V-00A" />
+          </div>
+          <div class="bg-gray-100 p-4 rounded-lg text-center">
+            <input type="text" readonly
+              class="w-full text-center text-lg sm:text-xl font-bold bg-gray-100 border-none focus:outline-none"
+              id="v3" value="00V-00A" />
+          </div>
+          <div class="bg-gray-100 p-4 rounded-lg text-center">
+            <input type="text" readonly
+              class="w-full text-center text-lg sm:text-xl font-bold bg-gray-100 border-none focus:outline-none"
+              id="frequency" value="00Hz" />
+          </div>
+        </div>
+
+        <!-- Manual Mode Heading -->
+        <h2 class="text-center text-2xl font-bold mb-4">Manual Mode</h2>
+
+        <!-- R buttons grid -->
+        <div class="grid grid-cols-3 sm:grid-cols-5 gap-3 sm:gap-4 mb-8">
+          <!-- Generate 15 buttons -->
+          <script>
+            for (let i = 1; i <= 15; i++) {
+              document.write(`
+                <button id="R${i}" class="p-3 sm:p-4 text-white font-bold rounded-lg transition-colors bg-red-500" onclick="handleButtonClick('R${i}')">
+                  R${i}
+                </button>
+              `);
+            }
+          </script>
+        </div>
+
+        <!-- Control buttons -->
+        <div class="flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0 sm:space-x-4">
+          <button onclick="handleLogout()"
+            class="bg-red-500 text-white px-6 py-2 rounded-lg hover:bg-red-600 w-full sm:w-auto">
+            Logout
+          </button>
+          <button onclick="showPopup('password')"
+            class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 w-full sm:w-auto">
+            Password Settings
+          </button>
+          <button onclick="showPopup('network')"
+            class="bg-purple-500 text-white px-6 py-2 rounded-lg hover:bg-purple-600 w-full sm:w-auto">
+            Network Settings
+          </button>
+          <button id="autoManualToggle" class="bg-yellow-500 text-white px-6 py-2 rounded-lg w-full sm:w-32"
+            onclick="handleAutoManualToggle()">
+            Auto
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Password Settings Popup -->
+    <div id="homePasswordPopup" class="popup">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-11/12 sm:w-96">
+        <h2 class="text-xl font-bold mb-4">Change Password</h2>
+        <div class="space-y-4">
+          <!-- Old Password Field -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Old Password</label>
+            <input type="password" id="homeOldPassword" class="w-full p-2 border rounded border-gray-300">
+            <p id="homeOldPasswordError" class="text-red-500 text-sm hidden">Old password is required</p>
+          </div>
+          <!-- New Password Field -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">New Password</label>
+            <input type="password" id="homeNewPassword" class="w-full p-2 border rounded border-gray-300">
+            <p id="homeNewPasswordError" class="text-red-500 text-sm hidden">New password must be 5 digits</p>
+          </div>
+          <!-- Confirm Password Field -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Confirm Password</label>
+            <input type="password" id="homeConfirmPassword" class="w-full p-2 border rounded border-gray-300">
+            <p id="homeConfirmPasswordError" class="text-red-500 text-sm hidden">Passwords do not match</p>
+          </div>
+          <!-- Buttons -->
+          <div class="flex justify-end space-x-4 mt-4">
+            <button onclick="hidePopup('password')"
+              class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Cancel</button>
+            <button onclick="handleSavePassword('home')"
+              class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="homeNetworkPopup" class="popup">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-11/12 sm:w-96">
+        <h2 class="text-xl font-bold mb-4">Network Settings</h2>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">IP Address</label>
+            <input type="text" id="homeIpAddress" class="w-full p-2 border rounded border-gray-300"
+              placeholder="e.g., 192.168.1.1">
+            <p id="homeIpAddressError" class="text-red-500 text-sm hidden">Invalid IP Address</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Net Mask</label>
+            <input type="text" id="homeNetMask" class="w-full p-2 border rounded border-gray-300"
+              placeholder="e.g., 255.255.255.0">
+            <p id="homeNetMaskError" class="text-red-500 text-sm hidden">Invalid Net Mask</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Default Gateway</label>
+            <input type="text" id="homeDefaultGateway" class="w-full p-2 border rounded border-gray-300"
+              placeholder="e.g., 192.168.1.254">
+            <p id="homeDefaultGatewayError" class="text-red-500 text-sm hidden">Invalid Default Gateway</p>
+          </div>
+          <!-- <div>
+            <label class="block text-sm font-medium text-gray-700">Console Port</label>
+            <input type="text" id="homeConsolePort" class="w-full p-2 border rounded border-gray-300"
+              placeholder="e.g., 1025">
+            <p id="homeConsolePortError" class="text-red-500 text-sm hidden">Console Port must be greater than 1024</p>
+          </div> -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">MCU Port</label>
+            <input type="text" id="homeMcuPort" class="w-full p-2 border rounded border-gray-300"
+              placeholder="e.g., 1026">
+            <p id="homeMcuPortError" class="text-red-500 text-sm hidden">MCU Port must be greater than 1024</p>
+          </div>
+          <div class="flex justify-end space-x-4 mt-4">
+            <button onclick="hidePopup('network')"
+              class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Cancel</button>
+            <button onclick="handleSaveNetworkSettings('home')"
+              class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="homeSuccessPopup" class="popup">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-80 text-center">
+        <h2 class="text-green-600 font-bold text-lg">Changes Saved Successfully!</h2>
+        <button id="homeReconnectButton" class="bg-blue-500 text-white px-4 py-2 rounded mt-4 hover:bg-blue-600 hidden"
+          onclick="handleReconnect('home')">Reconnect</button>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <!-- Auto Page (Initially Hidden) -->
+  <div class="min-h-screen bg-gradient-to-r from-blue-50 to-indigo-100 p-6" id="autoPage" style="display: none">
+    <div class="max-w-6xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-8">
+            <!-- Header with readings -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <input type="text" readonly id="v1" value="00V-00A" class="w-full text-center text-xl font-bold bg-gray-100 border-none focus:outline-none" />
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <input type="text" readonly id="v2" value="00V-00A" class="w-full text-center text-xl font-bold bg-gray-100 border-none focus:outline-none" />
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <input type="text" readonly id="v3" value="00V-00A" class="w-full text-center text-xl font-bold bg-gray-100 border-none focus:outline-none" />
+                </div>
+                <div class="bg-gray-100 p-4 rounded-lg text-center">
+                    <input type="text" readonly id="frequency" value="00Hz" class="w-full text-center text-xl font-bold bg-gray-100 border-none focus:outline-none" />
+                </div>
+            </div>
+
+            <h2 class="text-center text-2xl font-bold mb-8">Auto Mode</h2>
+
+            <!-- R buttons grid -->
+              <div id="selectedButtonsContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-10">
+                <!-- Selected buttons will be dynamically added here -->
+              </div>
+          
+
+            <!-- Control buttons -->
+            <!-- First Row: Logout, New, Edit, Delete, Restart, Start -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4 mb-4">
+                <button onclick="handleLogout()" id="logout-button" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 flex items-center justify-center text-center">
+                    <span>Logout</span>
+                </button>
+                <button id="new-sequence-button" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 flex items-center justify-center text-center">
+                    <span>New</span>
+                </button>
+                <button id="edit-sequence-button" class="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 flex items-center justify-center text-center" onclick="handleEditSequence()"style="display: none;">
+                  <span>Edit</span>
+              </button>
+                <button id="delete-sequence-button" class="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 flex items-center justify-center text-center">
+                    <span>Delete</span>
+                </button>
+                <button id="restart-button" class="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 flex items-center justify-center text-center">
+                    <span>Restart</span>
+                </button>
+                <button id="start-stop-button" class="bg-green-500 text-white px-4 py-2 rounded-lg  flex items-center justify-center text-center">
+                    <span>Start</span>
+                </button>
+            </div>
+
+            <!-- Second Row: Manual, Password Settings, Network Settings -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <button id="ManualToggle" class="bg-yellow-500 text-white px-4 py-2 rounded-lg hover:bg-yellow-600 flex items-center justify-center text-center" onclick="handleManualToggle()">
+                    <span>Manual</span>
+                </button>
+                <button onclick="showPopup('password')" class="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 flex items-center justify-center text-center">
+                    <span>Password</span>
+                    <span>Settings</span>
+                </button>
+                <button onclick="showPopup('network')" class="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 flex items-center justify-center text-center">
+                    <span>Network</span>
+                    <span>Settings</span>
+                </button>
+            </div>
+        </div> 
+    </div>
+</div>
+
+    <div id="autoPasswordPopup" class="popup">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-11/12 sm:w-96">
+        <h2 class="text-xl font-bold mb-4">Change Password</h2>
+        <div class="space-y-4">
+          <!-- Old Password Field -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Old Password</label>
+            <input type="password" id="autoOldPassword" class="w-full p-2 border rounded border-gray-300">
+            <p id="autoOldPasswordError" class="text-red-500 text-sm hidden">Old password is required</p>
+          </div>
+          <!-- New Password Field -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">New Password</label>
+            <input type="password" id="autoNewPassword" class="w-full p-2 border rounded border-gray-300">
+            <p id="autoNewPasswordError" class="text-red-500 text-sm hidden">New password must be 5 digits</p>
+          </div>
+          <!-- Confirm Password Field -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Confirm Password</label>
+            <input type="password" id="autoConfirmPassword" class="w-full p-2 border rounded border-gray-300">
+            <p id="autoConfirmPasswordError" class="text-red-500 text-sm hidden">Passwords do not match</p>
+          </div>
+          <!-- Buttons -->
+          <div class="flex justify-end space-x-4 mt-4">
+            <button onclick="hidePopup('password')"
+              class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Cancel</button>
+            <button onclick="handleSavePassword('auto')"
+              class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Network Settings Popup -->
+    <div id="autoNetworkPopup" class="popup">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-11/12 sm:w-96">
+        <h2 class="text-xl font-bold mb-4">Network Settings</h2>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">IP Address</label>
+            <input type="text" id="autoIpAddress" class="w-full p-2 border rounded border-gray-300"
+              placeholder="e.g., 192.168.1.1">
+            <p id="autoIpAddressError" class="text-red-500 text-sm hidden">Invalid IP Address</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Net Mask</label>
+            <input type="text" id="autoNetMask" class="w-full p-2 border rounded border-gray-300"
+              placeholder="e.g., 255.255.255.0">
+            <p id="autoNetMaskError" class="text-red-500 text-sm hidden">Invalid Net Mask</p>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Default Gateway</label>
+            <input type="text" id="autoDefaultGateway" class="w-full p-2 border rounded border-gray-300"
+              placeholder="e.g., 192.168.1.254">
+            <p id="autoDefaultGatewayError" class="text-red-500 text-sm hidden">Invalid Default Gateway</p>
+          </div>
+          <!-- <div>
+            <label class="block text-sm font-medium text-gray-700">Console Port</label>
+            <input type="text" id="autoConsolePort" class="w-full p-2 border rounded border-gray-300"
+              placeholder="e.g., 1025">
+            <p id="autoConsolePortError" class="text-red-500 text-sm hidden">Console Port must be greater than 1024</p>
+          </div> -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700">MCU Port</label>
+            <input type="text" id="autoMcuPort" class="w-full p-2 border rounded border-gray-300"
+              placeholder="e.g., 1026">
+            <p id="autoMcuPortError" class="text-red-500 text-sm hidden">MCU Port must be greater than 1024</p>
+          </div>
+          <div class="flex justify-end space-x-4 mt-4">
+            <button onclick="hidePopup('network')"
+              class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Cancel</button>
+            <button onclick="handleSaveNetworkSettings('auto')"
+              class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Popup -->
+    <div id="autoSuccessPopup" class="popup">
+      <div class="bg-white p-6 rounded-lg shadow-lg w-80 text-center">
+        <h2 class="text-green-600 font-bold text-lg">Changes Saved Successfully!</h2>
+        <button id="autoReconnectButton" class="bg-blue-500 text-white px-4 py-2 rounded mt-4 hover:bg-blue-600 hidden"
+          onclick="handleReconnect('auto')">Reconnect</button>
+      </div>
+    </div>
+
+    <div class="min-h-screen bg-gradient-to-r from-blue-50 to-indigo-100 p-4 sm:p-6" id="newSequencePage" style="display: none">
+      <div class="max-w-6xl mx-auto">
+        <div class="bg-white rounded-lg shadow-lg p-6 sm:p-8">
+          <!-- Header with readings -->
+          <div class="flex flex-col sm:flex-row justify-between items-center mb-8 space-y-4 sm:space-y-0 sm:space-x-4">
+            <div class="bg-gray-100 p-3 sm:p-4 rounded-lg flex-1 text-center w-full sm:w-auto">
+              <input type="text" readOnly id="v1" value="00V-00A" class="w-full text-center text-lg sm:text-xl font-bold bg-gray-100 border-none focus:outline-none">
+            </div>
+            <div class="bg-gray-100 p-3 sm:p-4 rounded-lg flex-1 text-center w-full sm:w-auto">
+              <input type="text" readOnly id="v2" value="00V-00A" class="w-full text-center text-lg sm:text-xl font-bold bg-gray-100 border-none focus:outline-none">
+            </div>
+            <div class="bg-gray-100 p-3 sm:p-4 rounded-lg flex-1 text-center w-full sm:w-auto">
+              <input type="text" readOnly id="v3" value="00V-00A" class="w-full text-center text-lg sm:text-xl font-bold bg-gray-100 border-none focus:outline-none">
+            </div>
+            <div class="bg-gray-100 p-3 sm:p-4 rounded-lg flex-1 text-center w-full sm:w-auto">
+              <input type="text" readOnly id="frequency" value="00Hz" class="w-full text-center text-lg sm:text-xl font-bold bg-gray-100 border-none focus:outline-none">
+            </div>
+          </div>
+    
+          <!-- R buttons grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-8" id="unique-buttons-container">
+            <button onclick="uniqueHandleButtonClick('unique-R1')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R1">R1</button>
+            <button onclick="uniqueHandleButtonClick('unique-R2')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R2">R2</button>
+            <button onclick="uniqueHandleButtonClick('unique-R3')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R3">R3</button>
+            <button onclick="uniqueHandleButtonClick('unique-R4')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R4">R4</button>
+            <button onclick="uniqueHandleButtonClick('unique-R5')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R5">R5</button>
+            <button onclick="uniqueHandleButtonClick('unique-R6')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R6">R6</button>
+            <button onclick="uniqueHandleButtonClick('unique-R7')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R7">R7</button>
+            <button onclick="uniqueHandleButtonClick('unique-R8')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R8">R8</button>
+            <button onclick="uniqueHandleButtonClick('unique-R9')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R9">R9</button>
+            <button onclick="uniqueHandleButtonClick('unique-R10')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R10">R10</button>
+            <button onclick="uniqueHandleButtonClick('unique-R11')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R11">R11</button>
+            <button onclick="uniqueHandleButtonClick('unique-R12')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R12">R12</button>
+            <button onclick="uniqueHandleButtonClick('unique-R13')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R13">R13</button>
+            <button onclick="uniqueHandleButtonClick('unique-R14')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R14">R14</button>
+            <button onclick="uniqueHandleButtonClick('unique-R15')" class="p-3 sm:p-4 text-white font-bold rounded-lg bg-red-500" id="unique-R15">R15</button>
+          </div>
+    
+          <!-- Control buttons -->
+          <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+            
+            <button onclick="uniqueHandleCancelPage()" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">
+              Cancel
+            </button>
+            <button onclick="uniqueHandleSave()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    
+      <!-- Popup for sequence details -->
+      <div id="unique-popup" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 p-4 hidden">
+        <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+          <h2 class="text-xl font-bold mb-4">Sequence Details</h2>
+          <div class="space-y-4">
+            <!-- Sequence Number (Read-only) -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Sequence Number</label>
+              <input type="text" id="unique-sequenceNumber" readOnly class="w-full p-2 border rounded bg-gray-100">
+            </div>
+    
+            <!-- Relay Number (Read-only) -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Relay Number</label>
+              <input type="text" id="unique-relayNumber" readOnly class="w-full p-2 border rounded bg-gray-100">
+            </div>
+    
+            <!-- Pre-Operation Delay -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Pre-Operation Delay (sec)</label>
+              <input type="number" id="unique-preOpDelay" class="w-full p-2 border rounded" placeholder="0-65535">
+            </div>
+    
+            <!-- Operation Toggle -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Operation</label>
+              <div class="flex space-x-2">
+                <button id="unique-operationToggle" onclick="uniqueToggleOperation()" class="px-4 py-2 rounded-lg bg-red-500 text-white ">Off</button>
+              </div>
+            </div>
+    
+            <!-- Post-Operation Delay -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700">Post-Operation Delay (sec)</label>
+              <input type="number" id="unique-postOpDelay" class="w-full p-2 border rounded" placeholder="0-65535">
+            </div>
+    
+            <!-- Popup buttons -->
+            <div class="flex justify-end space-x-4 mt-4">
+              <button onclick="uniqueHandleCancel()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                Cancel
+              </button>
+              <button onclick="uniqueHandleOk()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+<!-- Edit Page (Initially Hidden) -->
+<div class="min-h-screen bg-gradient-to-r from-blue-50 to-indigo-100 p-4 sm:p-6" id="editPage" style="display: none">
+  <div class="max-w-6xl mx-auto">
+    <div class="bg-white rounded-lg shadow-lg p-6 sm:p-8">
+      <!-- Header with readings -->
+      <div class="flex flex-col sm:flex-row justify-between items-center mb-8 space-y-4 sm:space-y-0 sm:space-x-4">
+        <div class="bg-gray-100 p-3 sm:p-4 rounded-lg flex-1 text-center w-full sm:w-auto">
+          <input type="text" readOnly id="v1" value="00V-00A" class="w-full text-center text-lg sm:text-xl font-bold bg-gray-100 border-none focus:outline-none">
+        </div>
+        <div class="bg-gray-100 p-3 sm:p-4 rounded-lg flex-1 text-center w-full sm:w-auto">
+          <input type="text" readOnly id="v2" value="00V-00A" class="w-full text-center text-lg sm:text-xl font-bold bg-gray-100 border-none focus:outline-none">
+        </div>
+        <div class="bg-gray-100 p-3 sm:p-4 rounded-lg flex-1 text-center w-full sm:w-auto">
+          <input type="text" readOnly id="v3" value="00V-00A" class="w-full text-center text-lg sm:text-xl font-bold bg-gray-100 border-none focus:outline-none">
+        </div>
+        <div class="bg-gray-100 p-3 sm:p-4 rounded-lg flex-1 text-center w-full sm:w-auto">
+          <input type="text" readOnly id="frequency" value="00Hz" class="w-full text-center text-lg sm:text-xl font-bold bg-gray-100 border-none focus:outline-none">
+        </div>
+      </div>
+
+      <!-- R buttons grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-8" id="edit-buttons-container">
+        <!-- Buttons will be dynamically added here -->
+      </div>
+
+      <!-- Control buttons -->
+      <div class="flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+        <button onclick="editHandleCancelPage()" class="bg-gray-500 text-white px-6 py-2 rounded-lg hover:bg-gray-600">
+          Cancel
+        </button>
+        <button onclick="editHandleSave()" class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600">
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup for sequence details -->
+  <div id="edit-popup" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 p-4 hidden">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
+      <h2 class="text-xl font-bold mb-4">Edit Sequence Details</h2>
+      <div class="space-y-4">
+        <!-- Sequence Number (Read-only) -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Sequence Number</label>
+          <input type="text" id="edit-sequenceNumber" readOnly class="w-full p-2 border rounded bg-gray-100">
+        </div>
+
+        <!-- Relay Number (Read-only) -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Relay Number</label>
+          <input type="text" id="edit-relayNumber" readOnly class="w-full p-2 border rounded bg-gray-100">
+        </div>
+
+        <!-- Pre-Operation Delay -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Pre-Operation Delay (sec)</label>
+          <input type="number" id="edit-preOpDelay" class="w-full p-2 border rounded" placeholder="0-65535 ">
+        </div>
+
+        <!-- Operation Toggle -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Operation</label>
+          <div class="flex space-x-2">
+            <button id="edit-operationToggle" onclick="editToggleOperation()" class="px-4 py-2 rounded-lg bg-red-500 text-white">Off</button>
+          </div>
+        </div>
+
+        <!-- Post-Operation Delay -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Post-Operation Delay (sec)</label>
+          <input type="number" id="edit-postOpDelay" class="w-full p-2 border rounded" placeholder="0-65535">
+        </div>
+
+        <!-- Popup buttons -->
+        <div class="flex justify-end space-x-4 mt-4">
+          <button onclick="editHandleCancel()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+            Cancel
+          </button>
+          <button onclick="editHandleOk()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+  <script>
+    // Initialize socket connection
+    const socket = io("http://localhost:3000"); // Connect to the backend
+
+    // Validate IP address
+    const validateIpAddress = (ip) => {
+      const parts = ip.split(".");
+      if (parts.length !== 4) return false;
+      return parts.every((part) => {
+        const num = parseInt(part);
+        return !isNaN(num) && num >= 0 && num <= 255;
+      });
+    };
+
+    // Validate port number
+    const validatePort = (port) => {
+      const num = parseInt(port);
+      return !isNaN(num) && num > 1024 && num <= 65535;
+    };
+
+    // Handle form submission
+    document
+      .getElementById("networkForm")
+      .addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const ipAddress = document.getElementById("ipAddress").value;
+        const consolePort = document.getElementById("consolePort").value;
+        const mcuPort = document.getElementById("mcuPort").value;
+
+        const errors = {};
+
+        // Validate IP Address
+        if (!validateIpAddress(ipAddress)) {
+          errors.ipAddress = "Please enter a valid IP address";
+        }
+
+        // Validate Console Port
+        if (!validatePort(consolePort)) {
+          errors.consolePort = "Port must be greater than 1024";
+        }
+
+        // Validate MCU Port
+        if (!validatePort(mcuPort)) {
+          errors.mcuPort = "Port must be greater than 1024";
+        }
+
+        // Check if Console Port and MCU Port are the same
+        if (consolePort === mcuPort) {
+          errors.mcuPort = "MCU Port cannot be the same as Console Port";
+        }
+
+        // Display errors
+        document.getElementById("ipAddressError").textContent =
+          errors.ipAddress || "";
+        document.getElementById("consolePortError").textContent =
+          errors.consolePort || "";
+        document.getElementById("mcuPortError").textContent =
+          errors.mcuPort || "";
+
+        // If no errors, proceed
+        if (Object.keys(errors).length === 0) {
+          // Send the UDP configuration to the backend
+          socket.emit("setUdpConfig", {
+            localPort: parseInt(consolePort),
+            remotePort: parseInt(mcuPort),
+            ipAddress: ipAddress,
+          });
+
+          socket.on("navigateToLogin", () => {
+            document.getElementById("loginContainer").style.display = "block"; // Show login section
+            document.getElementById("networkFormContainer").style.display =
+              "none"; // Hide other sections if needed
+            document.getElementById("homePage").style.display = "none";
+          });
+
+          // Listen for boot ACK
+          socket.once("bootAckReceived", () => {
+            clearTimeout(timeoutId);
+            bootAckReceived = true;
+
+            // Show success message
+            const successMessage = document.getElementById("successMessage");
+            successMessage.textContent =
+              "Connected successfully! Redirecting...";
+            successMessage.style.color = "green";
+            successMessage.style.display = "block";
+
+            // Hide network form and show login form after delay
+            setTimeout(() => {
+              document.getElementById("networkFormContainer").style.display =
+                "none";
+              document.getElementById("loginContainer").style.display =
+                "block";
+              document.getElementById("homePage").style.display = "none";
+            }, 1500);
+          });
+        }
+      });
+
+    // Handle form submission
+    document
+      .getElementById("loginForm")
+      .addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const password = document.getElementById("password").value;
+        const errorElement = document.getElementById("loginError");
+
+        // Validate password format (5 digits)
+        const passwordRegex = /^\d{5}$/;
+        if (!passwordRegex.test(password)) {
+          errorElement.textContent = "Password must be exactly 5 digits";
+          errorElement.style.display = "block";
+          return;
+        }
+
+        // Send the password to the backend for validation
+        socket.emit("loginAttempt", password);
+      });
+
+    // Handle password input changes
+    document
+      .getElementById("password")
+      .addEventListener("input", function (e) {
+        const value = e.target.value.replace(/\D/g, ""); // Remove non-numeric characters
+        if (value.length <= 5) {
+          e.target.value = value;
+          document.getElementById("loginError").style.display = "none";
+        }
+      });
+
+    // Listen for login success/failure events from the backend
+    socket.on("navigateToHomepage", () => {
+      document.getElementById("loginContainer").style.display = "none";
+      document.getElementById("homePage").style.display = "block"; // Show home page
+    });
+
+    socket.on("showError", (message) => {
+      const errorElement = document.getElementById("loginError");
+      errorElement.textContent = message;
+      errorElement.style.display = "block";
+    });
+    // Listen for UDP messages from the backend
+    socket.on("udpMessage", (message) => {
+      console.log("UDP Message:", message);
+    });
+
+    // Handle socket connection errors
+    socket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error);
+      alert("Failed to connect to the backend. Please check the server.");
+    });
+
+    // Handle backend errors for setUdpConfig
+    socket.on("setUdpConfigError", (error) => {
+      console.error("Failed to set UDP configuration:", error);
+      alert("Failed to set UDP configuration. Please try again.");
+    });
+
+    // JavaScript for handling interactions on Home Page
+    const activeButtons = new Set();
+    let isAuto = false;
+
+// Handle button click
+function handleButtonClick(buttonId) {
+  console.log(`Button ${buttonId} clicked`); 
+
+    const button = document.getElementById(buttonId);
+    const relayNumber = parseInt(buttonId.replace('R', ''), 10);
+    const isActive = button.classList.contains('bg-green-500');
+    const operation = isActive ? 0x00 : 0x01; // 0x00 for Off, 0x01 for On
+
+    // Send relay number and operation to the backend
+    socket.emit('relayButtonClick', { relayNumber, operation });
+    // Disable the button until ACK is received
+    button.disabled = true;
+}
+// Listen for relay status updates from the backend
+socket.on('relayStatusUpdate', (relayStatus) => {
+    for (let i = 0; i < relayStatus.length; i += 2) {
+        const relayNumber = relayStatus[i];
+        const status = relayStatus[i + 1];
+        const buttonId = `R${relayNumber + 1}`; // Relay numbers start from 0
+        const button = document.getElementById(buttonId);
+        if (button) {
+            button.classList.toggle('bg-green-500', status === 0x01);
+            button.classList.toggle('bg-red-500', status === 0x00);
+            button.disabled = false; // Re-enable the button
+        }
+    }
+});
+    function handleLogout() {
+      // Emit the logout attempt event to the server
+      socket.emit("logoutAttempt");
+
+      // Listen for the logout success event
+      socket.on("logoutSuccess", () => {
+        // Redirect to login page
+        document.getElementById("homePage").style.display = "none";
+        document.getElementById("loginContainer").style.display = "block";
+        document.getElementById("autoPage").style.display = "none";
+      });
+
+      // Listen for the logout error event
+      socket.on("logoutError", (errorMessage) => {
+        alert(errorMessage);
+      });
+    }
+
+    // Show Popup
+    // Show Popup
+    function showPopup(type) {
+      const activePage = document.querySelector('[id$="Page"]:not([style*="display: none"])').id;
+      const popup = document.getElementById(`${activePage.replace('Page', '')}${type.charAt(0).toUpperCase() + type.slice(1)}Popup`);
+      popup.classList.add("active");
+    }
+
+    // Hide Popup
+    function hidePopup(type) {
+      const activePage = document.querySelector('[id$="Page"]:not([style*="display: none"])').id;
+      const popup = document.getElementById(`${activePage.replace('Page', '')}${type.charAt(0).toUpperCase() + type.slice(1)}Popup`);
+      popup.classList.remove("active");
+    }
+
+    // Handle Save Password
+    function handleSavePassword(page) {
+      const oldPassword = document.getElementById(`${page}OldPassword`).value;
+      const newPassword = document.getElementById(`${page}NewPassword`).value;
+      const confirmPassword = document.getElementById(`${page}ConfirmPassword`).value;
+
+      const oldPasswordError = document.getElementById(`${page}OldPasswordError`);
+      const newPasswordError = document.getElementById(`${page}NewPasswordError`);
+      const confirmPasswordError = document.getElementById(`${page}ConfirmPasswordError`);
+
+      // Reset error messages
+      oldPasswordError.classList.add("hidden");
+      newPasswordError.classList.add("hidden");
+      confirmPasswordError.classList.add("hidden");
+
+      let isValid = true;
+
+      // Validate old password
+      if (!oldPassword) {
+        oldPasswordError.textContent = "Old password is required.";
+        oldPasswordError.classList.remove("hidden");
+        isValid = false;
+      }
+
+      // Validate new password
+      if (newPassword.length !== 5) {
+        newPasswordError.textContent = "New password must be exactly 5 characters long.";
+        newPasswordError.classList.remove("hidden");
+        isValid = false;
+      }
+
+      // Validate confirm password
+      if (confirmPassword !== newPassword) {
+        confirmPasswordError.textContent = "New password and confirm password do not match.";
+        confirmPasswordError.classList.remove("hidden");
+        isValid = false;
+      }
+
+      if (isValid) {
+        // Send the old and new password to the backend for verification and update
+        socket.emit("changePassword", {
+          oldPassword: oldPassword,
+          newPassword: newPassword,
+          confirmPassword: confirmPassword,
+        });
+
+        // Listen for success or failure from the backend
+        socket.on("passwordChangeSuccess", () => {
+          hidePopup("password");
+          showSuccessPopup(page, "Password changed successfully!", false); // Show success message without the reconnect button
+
+          // Redirect to the login page after a short delay
+          setTimeout(() => {
+            hidePopup("success");
+            document.getElementById("loginContainer").style.display = "block";
+            document.getElementById("homePage").style.display = "none";
+            document.getElementById("autoPage").style.display = "none";
+          }, 1000); // Delay for 2 seconds to show the success message
+        });
+
+        socket.on("passwordChangeError", (message) => {
+          oldPasswordError.textContent = message;
+          oldPasswordError.classList.remove("hidden");
+        });
+      }
+    }
+
+    // Handle Save Network Settings
+    function handleSaveNetworkSettings(page) {
+  const ipAddress = document.getElementById(`${page}IpAddress`).value;
+  const netMask = document.getElementById(`${page}NetMask`).value;
+  const defaultGateway = document.getElementById(`${page}DefaultGateway`).value;
+  const mcuPort = document.getElementById(`${page}McuPort`).value;
+
+  const ipAddressError = document.getElementById(`${page}IpAddressError`);
+  const netMaskError = document.getElementById(`${page}NetMaskError`);
+  const defaultGatewayError = document.getElementById(`${page}DefaultGatewayError`);
+  const mcuPortError = document.getElementById(`${page}McuPortError`);
+
+  ipAddressError.classList.add("hidden");
+  netMaskError.classList.add("hidden");
+  defaultGatewayError.classList.add("hidden");
+  mcuPortError.classList.add("hidden");
+
+  let isValid = true;
+
+  if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(ipAddress)) {
+    ipAddressError.classList.remove("hidden");
+    isValid = false;
+  }
+  if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(netMask)) {
+    netMaskError.classList.remove("hidden");
+    isValid = false;
+  }
+  if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(defaultGateway)) {
+    defaultGatewayError.classList.remove("hidden");
+    isValid = false;
+  }
+  if (!/^\d{1,5}$/.test(mcuPort) || parseInt(mcuPort) <= 1024) {
+    mcuPortError.classList.remove("hidden");
+    isValid = false;
+  }
+
+  if (isValid) {
+    // Emit the network settings to the backend
+    socket.emit("saveNetworkSettings", {
+      ipAddress: ipAddress,
+      netMask: netMask,
+      defaultGateway: defaultGateway,
+      mcuPort: mcuPort, // Only MCU Port is sent now
+    });
+
+    socket.on("networkSettingsSuccess", () => {
+      hidePopup("network");
+      showSuccessPopup(page, "Network settings saved successfully!", true); // Show success popup with reconnect button
+    });
+
+    // Listen for the error event from the server
+    socket.on("networkSettingsError", (errorMessage) => {
+      alert(errorMessage); // Show an error message to the user
+    });
+  }
+}
+    // Show Success Popup
+    function showSuccessPopup(page, message, showReconnect) {
+      const successPopup = document.getElementById(`${page}SuccessPopup`);
+      const reconnectButton = document.getElementById(`${page}ReconnectButton`);
+
+      successPopup.querySelector("h2").textContent = message;
+      reconnectButton.style.display = showReconnect ? "block" : "none";
+      successPopup.classList.add("active");
+    }
+
+    // Handle Reconnect
+    function handleReconnect(page) {
+      hidePopup("success");
+      document.getElementById("networkFormContainer").style.display = "block";
+      document.getElementById("homePage").style.display = "none";
+    }
+
+    function handleAutoManualToggle() {
+  const toggleButton = document.getElementById("autoManualToggle");
+
+  // Emit the auto/manual toggle attempt event to the server with the current page
+  socket.emit("autoManualToggleAttempt", "homePage");
+
+  // Listen for the auto/manual toggle success event (navigate to auto page)
+  socket.on("autoManualToggleSuccess", (data) => {
+    console.log("Auto/Manual toggle success:", data);
+
+    if (data.mode === "auto") {
+      // Navigate to the auto page
+      document.getElementById("homePage").style.display = "none";
+      document.getElementById("autoPage").style.display = "block";
+
+      // Clear existing buttons
+      const selectedButtonsContainer = document.getElementById("selectedButtonsContainer");
+      selectedButtonsContainer.innerHTML = "";
+
+      // If sequences are present, display the buttons
+      if (data.sequences.length > 0) {
+        data.sequences.forEach((sequence) => {
+          const button = document.createElement("button");
+          button.id = `R${sequence.relayNumber}`;
+          button.className = "r-button p-4 text-white font-bold rounded-lg transition-colors bg-red-500 flex items-center justify-center text-center relative";
+          button.innerHTML = `
+            <span>R${sequence.relayNumber}</span>
+            <div class="tooltip hidden absolute bg-white text-gray-800 p-2 rounded-lg shadow-lg border border-gray-200 z-10">
+              <p><strong>Sequence Number:</strong> <span class="sequence-number">${sequence.sequenceNumber}</span></p>
+              <p><strong>Relay Number:</strong> <span class="relay-number">${sequence.relayNumber}</span></p>
+              <p><strong>Pre-Op Delay:</strong> <span class="pre-op-delay">${sequence.preOpDelay}</span></p>
+              <p><strong>Operation:</strong> <span class="operation">${sequence.operation === 1 ? "On" : "Off"}</span></p>
+              <p><strong>Post-Op Delay:</strong> <span class="post-op-delay">${sequence.postOpDelay}</span></p>
+            </div>
+          `;
+
+          // Add hover functionality to show the tooltip
+          button.addEventListener("mouseover", () => {
+            const tooltip = button.querySelector(".tooltip");
+            if (tooltip) {
+              tooltip.classList.remove("hidden");
+            }
+          });
+
+          button.addEventListener("mouseout", () => {
+            const tooltip = button.querySelector(".tooltip");
+            if (tooltip) {
+              tooltip.classList.add("hidden");
+            }
+          });
+
+          // Append the button to the container
+          selectedButtonsContainer.appendChild(button);
+        });
+
+        // Enable the Edit button since sequences are present
+        document.getElementById("edit-sequence-button").style.display = "block";
+      } else {
+        // Disable the Edit button if no sequences are present
+        document.getElementById("edit-sequence-button").style.display = "none";
+      }
+    } else {
+      // Navigate to the home page
+      document.getElementById("homePage").style.display = "block";
+      document.getElementById("autoPage").style.display = "none";
+    }
+  });
+
+  // Listen for the auto/manual toggle error event
+  socket.on("autoManualToggleError", (errorMessage) => {
+    alert(errorMessage);
+  });
+}
+function handleManualToggle() {
+  const toggleButton = document.getElementById("ManualToggle");
+  // Emit the auto/manual toggle attempt event to the server with the current page
+  socket.emit("autoManualToggleAttempt", "autoPage");
+  // Listen for the navigate to homepage event (navigate to home page)
+  socket.on("navigateToHomepage", () => {
+    console.log("Manual mode acknowledgment received. Navigating to home page...");
+    // Navigate to the home page
+    document.getElementById("homePage").style.display = "block";
+    document.getElementById("autoPage").style.display = "none";
+  });
+
+  // Listen for the auto/manual toggle error event
+  socket.on("autoManualToggleError", (errorMessage) => {
+    alert(errorMessage);
+  });
+}
+   
+
+
+function clearAutoPageButtons() {
+  const selectedButtonsContainer = document.getElementById('selectedButtonsContainer');
+  selectedButtonsContainer.innerHTML = ''; // Clear all child elements
+}
+
+/* new sequence start */
+// Event listener for the "New" button
+document.getElementById('new-sequence-button').addEventListener('click', function () {
+  clearAutoPageButtons();
+  document.getElementById('homePage').style.display = 'none';
+  document.getElementById('autoPage').style.display = 'none';
+  document.getElementById("loginContainer").style.display = "none";
+  document.getElementById("networkFormContainer").style.display = "none";
+  document.getElementById('newSequencePage').style.display = 'block';
+});
+
+
+let uniqueNewActiveButtons = new Set();
+  let uniqueShowPopup = false;
+  let uniqueCurrentButtons = null;
+  let uniqueSequenceNumber = 1;
+  let uniqueRelayNumber = null;
+  let uniqueButtonData = {};
+  let uniqueOperationState = 'Off'; // Default operation state
+
+  function uniqueToggleOperation() {
+    const uniqueOperationToggle = document.getElementById('unique-operationToggle');
+    if (uniqueOperationState === 'Off') {
+      uniqueOperationState = 'On';
+      uniqueOperationToggle.textContent = 'On';
+      uniqueOperationToggle.classList.remove('bg-red-500');
+      uniqueOperationToggle.classList.add('bg-green-500');
+    } else {
+      uniqueOperationState = 'Off';
+      uniqueOperationToggle.textContent = 'Off';
+      uniqueOperationToggle.classList.remove('bg-green-500');
+      uniqueOperationToggle.classList.add('bg-red-500');
+    }
+  }
+
+  function uniqueHandleButtonClick(buttonId) {
+    uniqueCurrentButtons = buttonId;
+    uniqueRelayNumber = buttonId.replace('unique-R', '');
+    uniqueShowPopup = true;
+    document.getElementById('unique-relayNumber').value = uniqueRelayNumber;
+    document.getElementById('unique-sequenceNumber').value = uniqueSequenceNumber;
+    document.getElementById('unique-preOpDelay').value = uniqueButtonData[uniqueCurrentButtons]?.preOpDelay || '';
+    document.getElementById('unique-postOpDelay').value = uniqueButtonData[uniqueCurrentButtons]?.postOpDelay || '';
+    uniqueOperationState = uniqueButtonData[uniqueCurrentButtons]?.operation || 'Off';
+    const uniqueOperationToggle = document.getElementById('unique-operationToggle');
+    uniqueOperationToggle.textContent = uniqueOperationState;
+    uniqueOperationToggle.classList.remove('bg-green-500', 'bg-red-500');
+    uniqueOperationToggle.classList.add(uniqueOperationState === 'On' ? 'bg-green-500' : 'bg-red-500');
+    document.getElementById('unique-popup').classList.remove('hidden');
+  }
+
+  function uniqueHandleOk() {
+    const uniquePreOpDelay = document.getElementById('unique-preOpDelay').value;
+    const uniquePostOpDelay = document.getElementById('unique-postOpDelay').value;
+
+    if (uniquePreOpDelay && uniquePostOpDelay) {
+      uniqueNewActiveButtons.add(uniqueCurrentButtons);
+      uniqueSequenceNumber += 1;
+      uniqueShowPopup = false;
+      uniqueButtonData[uniqueCurrentButtons] = { preOpDelay: uniquePreOpDelay, operation: uniqueOperationState, postOpDelay: uniquePostOpDelay };
+      document.getElementById('unique-popup').classList.add('hidden');
+      document.getElementById(uniqueCurrentButtons).classList.add('bg-gray-500');
+      document.getElementById(uniqueCurrentButtons).classList.remove('bg-red-500');
+      document.getElementById(uniqueCurrentButtons).disabled = true; // Disable the button
+    } else {
+      alert('Please fill all fields.');
+    }
+  }
+
+  function uniqueHandleCancel() {
+    uniqueShowPopup = false;
+    document.getElementById('unique-popup').classList.add('hidden');
+  }
+
+  
+function toUint16Bytes(value) {
+    let num = parseInt(value, 10); // Convert string to integer
+    if (num < 0 || num > 65535) {
+        throw new Error('Value out of range for 16-bit unsigned integer');
+    }
+    return [(num >> 8) & 0xFF, num & 0xFF]; // Extract high byte (MSB) and low byte (LSB)
+}
+
+function uniqueHandleSave() {
+    if (uniqueNewActiveButtons.size === 0) {
+        alert('No sequence created. Please select at least one button to create a sequence.');
+        return;
+    }
+
+    const uniqueNewActiveButtonsArray = Array.from(uniqueNewActiveButtons);
+    const uniqueSequenceData = uniqueNewActiveButtonsArray.map((button, index) => {
+        const data = uniqueButtonData[button];
+        const relayNumber = parseInt(button.replace('unique-R', ''), 10);
+        const preOpDelayBytes = toUint16Bytes(data.preOpDelay);
+        const postOpDelayBytes = toUint16Bytes(data.postOpDelay);
+
+        return [
+            index + 1, // Sequence Number
+            relayNumber, // Relay Number
+            ...preOpDelayBytes, // Pre-Operation Delay (2 bytes)
+            data.operation === 'On' ? 1 : 0, // Operation (1 for On, 0 for Off)
+            ...postOpDelayBytes // Post-Operation Delay (2 bytes)
+        ];
+    }).flat();
+
+    // Set buttons to non-editable state
+    uniqueNewActiveButtonsArray.forEach(button => {
+        uniqueButtonData[button].isEditable = false;
+    });
+    
+    // Send the sequence data to the backend
+    socket.emit('uniqueSaveSequence', uniqueSequenceData);
+    console.log("Sequence data sent to backend:", uniqueSequenceData);
+    // Show a loading indicator (optional)
+    const saveButton = document.querySelector('#newSequencePage button[onclick="uniqueHandleSave()"]');
+    saveButton.disabled = true;
+    saveButton.textContent = 'Saving...';
+
+    // Listen for the ACK from the backend
+    socket.once('uniqueSequenceSaveSuccess', (sequenceData) => {
+        console.log("Data from backend:", sequenceData); // Log the raw data for debugging
+
+        // Reset UI and enable buttons
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save';
+        uniqueNewActiveButtons.clear();
+        uniqueButtonData = {};
+        uniqueSequenceNumber = 1;
+
+        const structuredData = [];
+        for (let i = 0; i < sequenceData.length; i += 7) {
+            const preOpDelay = (sequenceData[i + 2] << 8) | sequenceData[i + 3];
+            const postOpDelay = (sequenceData[i + 5] << 8) | sequenceData[i + 6];
+
+            structuredData.push({
+                sequenceNumber: sequenceData[i],
+                relayNumber: sequenceData[i + 1],
+                preOpDelay: preOpDelay,
+                operation: sequenceData[i + 4] === 1 ? 'On' : 'Off',
+                postOpDelay: postOpDelay,
+                isEditable: false // Set to non-editable
+            });
+        }
+
+        // Clear the existing buttons
+        const selectedButtonsContainer = document.getElementById('selectedButtonsContainer');
+        selectedButtonsContainer.innerHTML = '';
+
+        // Add new buttons for the saved sequence data
+        structuredData.forEach(data => {
+            const button = document.createElement('button');
+            button.id = `R${data.relayNumber}`;
+            button.className = 'r-button p-4 text-white font-bold rounded-lg transition-colors bg-red-500 flex items-center justify-center text-center relative';
+            button.innerHTML = `
+              <span>R${data.relayNumber}</span>
+              <div class="tooltip hidden absolute bg-white text-gray-800 p-2 rounded-lg shadow-lg border border-gray-200 z-10">
+                <p><strong>Sequence Number:</strong> <span class="sequence-number">${data.sequenceNumber}</span></p>
+                <p><strong>Relay Number:</strong> <span class="relay-number">${data.relayNumber}</span></p>
+                <p><strong>Pre-Op Delay:</strong> <span class="pre-op-delay">${data.preOpDelay}</span></p>
+                <p><strong>Operation:</strong> <span class="operation">${data.operation}</span></p>
+                <p><strong>Post-Op Delay:</strong> <span class="post-op-delay">${data.postOpDelay}</span></p>
+              </div>
+            `;
+
+            // Add hover functionality to show the tooltip
+            button.addEventListener('mouseover', () => {
+                const tooltip = button.querySelector('.tooltip');
+                if (tooltip) {
+                    tooltip.classList.remove('hidden');
+                }
+            });
+
+            button.addEventListener('mouseout', () => {
+                const tooltip = button.querySelector('.tooltip');
+                if (tooltip) {
+                    tooltip.classList.add('hidden');
+                }
+            });
+
+            // Append the button to the container
+            selectedButtonsContainer.appendChild(button);
+        });
+
+        // Reset other UI elements
+        document.getElementById('unique-relayNumber').value = '';
+        document.getElementById('unique-sequenceNumber').value = '';
+        document.getElementById('unique-preOpDelay').value = '';
+        document.getElementById('unique-postOpDelay').value = '';
+        uniqueOperationState = 'Off';
+        const uniqueOperationToggle = document.getElementById('unique-operationToggle');
+        uniqueOperationToggle.textContent = uniqueOperationState;
+        uniqueOperationToggle.classList.remove('bg-green-500', 'bg-red-500');
+        uniqueOperationToggle.classList.add('bg-red-500');
+
+        // Enable all buttons
+        const allButtons = document.querySelectorAll('[id^="unique-R"]');
+        allButtons.forEach(button => {
+            button.disabled = false;
+            button.classList.remove('bg-gray-500');
+            button.classList.add('bg-red-500');
+        });
+
+        // Navigate to the autoPage
+        document.getElementById('editPage').style.display = 'none';
+        document.getElementById('homePage').style.display = 'none';
+        document.getElementById('autoPage').style.display = 'block';
+        document.getElementById("loginContainer").style.display = "none";
+        document.getElementById("networkFormContainer").style.display = "none";
+        document.getElementById('newSequencePage').style.display = 'none';
+        toggleEditButtonVisibility();
+    });
+
+    socket.once('uniqueSequenceSaveError', (errorMessage) => {
+        alert('Error saving sequence: ' + errorMessage);
+
+        // Hide the loading indicator (optional)
+        saveButton.disabled = false;
+        saveButton.textContent = 'Save';
+    });
+}
+
+function uniqueHandleCancelPage() {
+  // Clear the active buttons set
+  uniqueNewActiveButtons.clear();
+  // Clear the button data
+  uniqueButtonData = {};
+  // Reset the sequence number
+  uniqueSequenceNumber = 1;
+  // Enable all buttons and reset their styles
+  const allButtons = document.querySelectorAll('[id^="unique-R"]'); // Select all buttons with IDs starting with "unique-R"
+  allButtons.forEach(button => {
+    button.disabled = false; // Re-enable the button
+    button.classList.remove('bg-gray-500'); // Remove disabled style
+    button.classList.add('bg-red-500'); // Add default style
+  });
+
+  // Clear the input fields
+  document.getElementById('unique-relayNumber').value = '';
+  document.getElementById('unique-sequenceNumber').value = '';
+  document.getElementById('unique-preOpDelay').value = '';
+  document.getElementById('unique-postOpDelay').value = '';
+
+  // Reset the operation state to 'Off'
+  uniqueOperationState = 'Off';
+  const uniqueOperationToggle = document.getElementById('unique-operationToggle');
+  uniqueOperationToggle.textContent = uniqueOperationState;
+  uniqueOperationToggle.classList.remove('bg-green-500', 'bg-red-500');
+  uniqueOperationToggle.classList.add('bg-red-500');
+
+  // Navigate to the autoPage
+  socket.emit('uniqueNavigateToAutoPage');
+}
+
+
+socket.on('uniqueSequenceSaveError', (errorMessage) => {
+    alert('Error saving sequence: ' + errorMessage);
+});
+
+socket.on('uniqueNavigateToAutoPage', () => {
+    document.getElementById('homePage').style.display = 'none';
+    document.getElementById('autoPage').style.display = 'block';
+    document.getElementById("loginContainer").style.display = "none";
+    document.getElementById("networkFormContainer").style.display = "none";
+    document.getElementById('newSequencePage').style.display = 'none';
+});
+
+
+/* new sequence end */
+
+
+
+
+
+/* edit sequence start */
+let editActiveButtons = new Set();
+let editShowPopup = false;
+let editCurrentButtons = null;
+let editSequenceNumber = 1;
+let editRelayNumber = null;
+let editButtonData = {};
+let editOperationState = 'Off'; // Default operation state
+
+// Function to toggle operation state
+function editToggleOperation() {
+  const editOperationToggle = document.getElementById('edit-operationToggle');
+  if (editOperationState === 'Off') {
+    editOperationState = 'On';
+    editOperationToggle.textContent = 'On';
+    editOperationToggle.classList.remove('bg-red-500');
+    editOperationToggle.classList.add('bg-green-500');
+  } else {
+    editOperationState = 'Off';
+    editOperationToggle.textContent = 'Off';
+    editOperationToggle.classList.remove('bg-green-500');
+    editOperationToggle.classList.add('bg-red-500');
+  }
+}
+
+// Function to handle button click on Edit Page
+function editHandleButtonClick(buttonId) {
+  editCurrentButtons = buttonId;
+  editRelayNumber = buttonId.replace('edit-R', '');
+
+  // Get the existing data for the button
+  const buttonData = editButtonData[buttonId];
+
+  // Pre-fill the popup with the existing data
+  document.getElementById('edit-sequenceNumber').value = buttonData.sequenceNumber;
+  document.getElementById('edit-relayNumber').value = buttonData.relayNumber;
+  document.getElementById('edit-preOpDelay').value = buttonData.preOpDelay;
+  document.getElementById('edit-postOpDelay').value = buttonData.postOpDelay;
+  editOperationState = buttonData.operation;
+
+  // Update the operation toggle button
+  const editOperationToggle = document.getElementById('edit-operationToggle');
+  editOperationToggle.textContent = editOperationState;
+  editOperationToggle.classList.remove('bg-green-500', 'bg-red-500');
+  editOperationToggle.classList.add(editOperationState === 'On' ? 'bg-green-500' : 'bg-red-500');
+
+  // Show the popup
+  editShowPopup = true;
+  document.getElementById('edit-popup').classList.remove('hidden');
+}
+
+// Function to handle OK button in popup
+function editHandleOk() {
+  const editPreOpDelay = document.getElementById('edit-preOpDelay').value;
+  const editPostOpDelay = document.getElementById('edit-postOpDelay').value;
+
+  if (editPreOpDelay && editPostOpDelay) {
+    // Save the edited data
+    editButtonData[editCurrentButtons] = {
+      sequenceNumber: document.getElementById('edit-sequenceNumber').value,
+      relayNumber: document.getElementById('edit-relayNumber').value,
+      preOpDelay: editPreOpDelay,
+      operation: editOperationState,
+      postOpDelay: editPostOpDelay,
+    };
+
+    // Hide the popup
+    editShowPopup = false;
+    document.getElementById('edit-popup').classList.add('hidden');
+
+    // Update the button style to indicate it's been edited
+    const button = document.getElementById(editCurrentButtons);
+    button.classList.add('bg-gray-500');
+    button.classList.remove('bg-red-500');
+  } else {
+    alert('Please fill all fields.');
+  }
+}
+
+// Function to handle Cancel button in popup
+function editHandleCancel() {
+  editShowPopup = false;
+  document.getElementById('edit-popup').classList.add('hidden');
+}
+function handleEditSequence() {
+  console.log("Edit sequence button clicked!");
+
+  // Example: Navigate to the edit page
+  document.getElementById('autoPage').style.display = 'none';
+  document.getElementById('editPage').style.display = 'block';
+}
+// Function to handle Save button on Edit Page
+function editHandleSave() {
+  if (Object.keys(editButtonData).length === 0) {
+    alert("No changes made. Please edit at least one button.");
+    return;
+  }
+
+  // Convert the edited button data into the required format
+  const editSequenceData = Object.values(editButtonData)
+    .map((data) => {
+      const preOpDelayBytes = toUint16Bytes(data.preOpDelay);
+      const postOpDelayBytes = toUint16Bytes(data.postOpDelay);
+
+      return [
+        parseInt(data.sequenceNumber, 10), // Ensure sequence number is a number
+        parseInt(data.relayNumber, 10), // Relay Number (1 byte)
+        ...preOpDelayBytes, // Pre-Operation Delay (2 bytes)
+        data.operation === "On" ? 1 : 0, // Operation (1 byte: 1 for On, 0 for Off)
+        ...postOpDelayBytes, // Post-Operation Delay (2 bytes)
+      ];
+    })
+    .flat();
+
+  // Show a loading indicator
+  const saveButton = document.querySelector(
+    '#editPage button[onclick="editHandleSave()"]'
+  );
+  saveButton.disabled = true;
+  saveButton.textContent = "Saving...";
+
+  // Send the sequence data to the backend
+  console.log("Edit sequence data sent to backend:", editSequenceData);
+  socket.emit("editSaveSequence", editSequenceData);
+
+  // Wait for ACK before navigating to autoPage
+  const handleSuccess = (sequenceData) => {
+    console.log("ACK received from backend:", sequenceData);
+    console.log("Navigating to autoPage...");
+
+    // Reset UI and enable buttons
+    saveButton.disabled = false;
+    saveButton.textContent = "Save";
+    editActiveButtons.clear();
+    editButtonData = {};
+    editSequenceNumber = 1;
+
+    // Process the sequence data received from the backend
+    const structuredData = [];
+    for (let i = 0; i < sequenceData.length; i += 7) {
+      const preOpDelay = (sequenceData[i + 2] << 8) | sequenceData[i + 3];
+      const postOpDelay = (sequenceData[i + 5] << 8) | sequenceData[i + 6];
+
+      structuredData.push({
+        sequenceNumber: sequenceData[i],
+        relayNumber: sequenceData[i + 1],
+        preOpDelay: preOpDelay,
+        operation: sequenceData[i + 4] === 1 ? "On" : "Off",
+        postOpDelay: postOpDelay,
+        isEditable: false, // Set to non-editable
+      });
+    }
+
+    // Clear the existing buttons
+    const selectedButtonsContainer = document.getElementById(
+      "selectedButtonsContainer"
+    );
+    selectedButtonsContainer.innerHTML = "";
+
+    // Add new buttons for the saved sequence data
+    structuredData.forEach((data) => {
+      const button = document.createElement("button");
+      button.id = `R${data.relayNumber}`;
+      button.className =
+        "r-button p-4 text-white font-bold rounded-lg transition-colors bg-red-500 flex items-center justify-center text-center relative";
+      button.innerHTML = `
+        <span>R${data.relayNumber}</span>
+        <div class="tooltip hidden absolute bg-white text-gray-800 p-2 rounded-lg shadow-lg border border-gray-200 z-10">
+          <p><strong>Sequence Number:</strong> <span class="sequence-number">${data.sequenceNumber}</span></p>
+          <p><strong>Relay Number:</strong> <span class="relay-number">${data.relayNumber}</span></p>
+          <p><strong>Pre-Op Delay:</strong> <span class="pre-op-delay">${data.preOpDelay}</span></p>
+          <p><strong>Operation:</strong> <span class="operation">${data.operation}</span></p>
+          <p><strong>Post-Op Delay:</strong> <span class="post-op-delay">${data.postOpDelay}</span></p>
+        </div>
+      `;
+
+      // Add hover functionality to show the tooltip
+      button.addEventListener("mouseover", () => {
+        const tooltip = button.querySelector(".tooltip");
+        if (tooltip) {
+          tooltip.classList.remove("hidden");
+        }
+      });
+
+      button.addEventListener("mouseout", () => {
+        const tooltip = button.querySelector(".tooltip");
+        if (tooltip) {
+          tooltip.classList.add("hidden");
+        }
+      });
+
+      // Append the button to the container
+      selectedButtonsContainer.appendChild(button);
+    });
+
+    // Reset other UI elements
+    document.getElementById("edit-relayNumber").value = "";
+    document.getElementById("edit-sequenceNumber").value = "";
+    document.getElementById("edit-preOpDelay").value = "";
+    document.getElementById("edit-postOpDelay").value = "";
+    editOperationState = "Off";
+    const editOperationToggle = document.getElementById("edit-operationToggle");
+    editOperationToggle.textContent = editOperationState;
+    editOperationToggle.classList.remove("bg-green-500", "bg-red-500");
+    editOperationToggle.classList.add("bg-red-500");
+
+    // Enable all buttons
+    const allButtons = document.querySelectorAll('[id^="edit-R"]');
+    allButtons.forEach((button) => {
+      button.disabled = false;
+      button.classList.remove("bg-gray-500");
+      button.classList.add("bg-red-500");
+    });
+
+    // Navigate to the autoPage ONLY AFTER ACK
+    document.getElementById("editPage").style.display = "none";
+    document.getElementById("homePage").style.display = "none";
+    document.getElementById("autoPage").style.display = "block";
+    document.getElementById("loginContainer").style.display = "none";
+    document.getElementById("networkFormContainer").style.display = "none";
+    document.getElementById("newSequencePage").style.display = "none";
+    toggleEditButtonVisibility();
+  };
+
+  const handleError = (errorMessage) => {
+    console.error("Error saving sequence:", errorMessage);
+
+    // Hide the loading indicator
+    saveButton.disabled = false;
+    saveButton.textContent = "Save";
+
+    // Show an error message to the user
+    alert("Error saving sequence: " + errorMessage);
+
+    // Do not navigate away from the editPage
+  };
+
+  // Attach listeners and ensure they run only once
+  socket.once("editSequenceSaveSuccess", handleSuccess);
+  socket.once("editSequenceSaveError", handleError);
+}
+
+
+function editHandleCancelPage() {
+  // Clear the data and reset the UI
+  editActiveButtons.clear();
+  editButtonData = {};
+  editSequenceNumber = 1;
+
+  // Navigate back to the Auto Page
+  document.getElementById('homePage').style.display = 'none';
+  document.getElementById('autoPage').style.display = 'block';
+  document.getElementById('editPage').style.display = 'none';
+
+  toggleEditButtonVisibility();
+}
+
+
+// Function to toggle Edit button visibility
+function toggleEditButtonVisibility() {
+  const selectedButtonsContainer = document.getElementById('selectedButtonsContainer');
+  const editButton = document.getElementById('edit-sequence-button');
+
+  // Check if there are any buttons in the selectedButtonsContainer
+  if (selectedButtonsContainer.children.length > 0) {
+    editButton.style.display = 'block'; // Show the Edit button
+  } else {
+    editButton.style.display = 'none'; // Hide the Edit button
+  }
+}
+
+// Call this function when the Auto Page is loaded
+document.addEventListener('DOMContentLoaded', function () {
+  toggleEditButtonVisibility();
+});
+
+
+// Event listener for the "Edit" button on Auto Page
+document.getElementById('edit-sequence-button').addEventListener('click', function () {
+  // Hide other pages
+  document.getElementById('homePage').style.display = 'none';
+  document.getElementById('autoPage').style.display = 'none';
+  document.getElementById('editPage').style.display = 'block';
+
+  // Copy the buttons and their data from the Auto Page to the Edit Page
+  const selectedButtonsContainer = document.getElementById('selectedButtonsContainer');
+  const editButtonsContainer = document.getElementById('edit-buttons-container');
+  editButtonsContainer.innerHTML = selectedButtonsContainer.innerHTML;
+
+  // Add event listeners to the buttons on the Edit Page
+  const editButtons = document.querySelectorAll('#edit-buttons-container button');
+  editButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      editHandleButtonClick(button.id);
+    });
+
+    // Load existing data into editButtonData
+    const tooltip = button.querySelector('.tooltip');
+    if (tooltip) {
+      const sequenceNumber = tooltip.querySelector('.sequence-number').textContent;
+      const relayNumber = tooltip.querySelector('.relay-number').textContent;
+      const preOpDelay = tooltip.querySelector('.pre-op-delay').textContent;
+      const operation = tooltip.querySelector('.operation').textContent;
+      const postOpDelay = tooltip.querySelector('.post-op-delay').textContent;
+
+      editButtonData[button.id] = {
+        sequenceNumber: sequenceNumber,
+        relayNumber: relayNumber,
+        preOpDelay: preOpDelay,
+        operation: operation,
+        postOpDelay: postOpDelay,
+      };
+    }
+  });
+});
+
+
+/* edit sequence end */
+
+
+/* delete sequence start */
+// Event listener for the "Delete" button
+document.getElementById('delete-sequence-button').addEventListener('click', function () {
+  // Emit the delete sequence event to the server
+  socket.emit('deleteSequence');
+});
+
+// Listen for the delete sequence acknowledgment from the backend
+socket.on('deleteSequenceAck', () => {
+  // Clear all buttons from the UI
+  const selectedButtonsContainer = document.getElementById('selectedButtonsContainer');
+  selectedButtonsContainer.innerHTML = '';
+  toggleEditButtonVisibility();
+
+});
+/* delete sequence end */
+
+
+
+
+/* start and stop code start */
+// Function to handle Start/Stop button click
+// Event listener for the Start/Stop button
+// Event listener for the Start/Stop button
+document.getElementById('start-stop-button').addEventListener('click', function () {
+  const button = document.getElementById('start-stop-button');
+  const isStart = button.textContent.trim() === 'Start';
+
+  // Emit the start/stop event to the server
+  socket.emit('startStopSequence', isStart);
+
+  // Toggle the button text and class
+  button.textContent = isStart ? 'Stop' : 'Start';
+  button.classList.toggle('start-button', !isStart); // Add 'start-button' class if switching to Start
+  button.classList.toggle('stop-button', isStart);  // Add 'stop-button' class if switching to Stop
+});
+
+// Listen for the start/stop acknowledgment from the backend
+socket.on('startStopAck', (isStart) => {
+  const button = document.getElementById('start-stop-button');
+  button.textContent = isStart ? 'Stop' : 'Start';
+  button.classList.toggle('start-button', !isStart); // Add 'start-button' class if switching to Start
+  button.classList.toggle('stop-button', isStart);  // Add 'stop-button' class if switching to Stop
+});
+/* start and stop code end */
+
+
+
+
+// Event listener for the Restart button
+document.getElementById('restart-button').addEventListener('click', function () {
+  // Emit the restart event to the server
+  socket.emit('restartSequence');
+});
+
+// Listen for the restart acknowledgment from the backend
+socket.on('restartAck', () => {
+  // You can also update the UI or perform other actions here
+});
+
+
+
+// Listen for new data from the backend
+socket.on("newData", (data) => {
+  console.log("New data received:", data);
+
+  // Update the UI with the new data
+  document.getElementById("v1").value = `${data.v1}V-${data.i1}A`;
+  document.getElementById("v2").value = `${data.v2}V-${data.i2}A`;
+  document.getElementById("v3").value = `${data.v3}V-${data.i3}A`;
+  document.getElementById("frequency").value = `${data.frequency}Hz`;
+});
+</script>
+</body>
+
+</html>
