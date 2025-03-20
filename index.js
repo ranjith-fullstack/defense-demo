@@ -8,7 +8,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const HTTP_PORT = process.env.PORT || 3000;
+const HTTP_PORT = 10000;
 let LOCAL_UDP_PORT = null;
 let REMOTE_UDP_PORT = null;
 let MICROCONTROLLER_IP = null;
