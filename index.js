@@ -2,11 +2,12 @@ const express = require("express");
 const dgram = require("dgram");
 const http = require("http");
 const { Server } = require("socket.io");
-
+const cors = require('cors');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
+
 
 const HTTP_PORT = 3000;
 let LOCAL_UDP_PORT = null;
@@ -18,7 +19,7 @@ let clientCount = 0;
 
 // Serve static files
 app.use(express.static("public"));
-
+app.use(cors());
 // Serve the main HTML file
 app.get("/", (req, res) => {
   res.sendFile(__dirname + "/index.html");
